@@ -461,12 +461,13 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 	 <<setw(10) <<sysRead+sysWrite << endl;
 }
 
-void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns)
+unsigned long calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
     memdata_t md;
-
+    unsigned long ret = 0;
+    
     for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
     {
         md.iMC_Rd_socket[skt] = 0.0;
@@ -510,6 +511,8 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
 
                 md.partial_write[skt] += (uint64) (getMCCounter(channel,PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
             }
+
+	    ret += (md.iMC_Rd_socket[skt] + md.iMC_Wr_socket[skt]);
 	}
     }
 
@@ -522,15 +525,17 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
     } else {
       display_bandwidth(m, &md, no_columns);
     }
+
+    return ret;
 }
 
-void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, int rankA, int rankB)
+unsigned long calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, int rankA, int rankB)
 {
     uint32 skt = 0;
     cout.setf(ios::fixed);
     cout.precision(2);
     uint32 numSockets = m->getNumSockets();
-
+    
     while(skt < numSockets)
     {
         // Full row
@@ -585,12 +590,17 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
             skt += 1;
         }
     }
+
+    return 0;
 }
 
 int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
+    unsigned long threshold = 10 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
+    unsigned long accumulated_memory_IO = 0;
+    
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
     std::cout.rdbuf(&nullStream1);
@@ -867,10 +877,18 @@ int main(int argc, char * argv[])
 	}
 
         if(rankA >= 0 || rankB >= 0)
-          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
+          accumulated_memory_IO += calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
         else
-          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns);
+          accumulated_memory_IO += calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns);
 
+	if(accumulated_memory_IO > threshold){
+	  cout << "accumulated memory IO reached " << accumulated_memory_IO << " MB!" << endl;
+	  cout << "(threshold: " << threshold << " MB)" << endl;
+	  accumulated_memory_IO = 0;
+	}
+
+	//cout << "accumulated memory IO: " << accumlated_memory_IO << endl;
+	
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
 

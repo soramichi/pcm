@@ -35,6 +35,8 @@
 #include <string.h>
 #include <string>
 #include <assert.h>
+#include <sys/types.h>
+#include <signal.h>
 #include "cpucounters.h"
 #include "utils.h"
 
@@ -598,7 +600,7 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    unsigned long threshold = 10 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
+    unsigned long threshold = 100 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
     unsigned long accumulated_memory_IO = 0;
     
 #ifdef PCM_FORCE_SILENT
@@ -832,9 +834,11 @@ int main(int argc, char * argv[])
 
     BeforeTime = m->getTickCount();
 
+    pid_t child = 0;
     if( sysCmd != NULL ) {
-        MySystem(sysCmd, sysArgv);
+      child = MySystem(sysCmd, sysArgv);
     }
+    std::cout << "child pid: " << child << std::endl;
 
     unsigned int i = 1;
 
@@ -885,6 +889,7 @@ int main(int argc, char * argv[])
 	  cout << "accumulated memory IO reached " << accumulated_memory_IO << " MB!" << endl;
 	  cout << "(threshold: " << threshold << " MB)" << endl;
 	  accumulated_memory_IO = 0;
+	  kill(child, SIGKILL);
 	}
 
 	//cout << "accumulated memory IO: " << accumlated_memory_IO << endl;

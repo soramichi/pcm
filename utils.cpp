@@ -341,7 +341,7 @@ void set_post_cleanup_callback(void(*cb)(void))
 }
 
 //!\brief launches external program in a separate process
-void MySystem(char * sysCmd, char ** sysArgv)
+pid_t MySystem(char * sysCmd, char ** sysArgv)
 {
     if (sysCmd == NULL) {
         assert("No program provided. NULL pointer");
@@ -382,7 +382,7 @@ void MySystem(char * sysCmd, char ** sysArgv)
     }
 #else
     pid_t child_pid = fork();
-
+    
     if (child_pid == 0) {
         execvp(sysCmd, sysArgv);
         std::cerr << "Failed to start program \"" << sysCmd << "\"" << std::endl;
@@ -394,7 +394,7 @@ void MySystem(char * sysCmd, char ** sysArgv)
             int res;
             waitpid(child_pid, &res, 0);
             std::cerr << "Program " << sysCmd << " launched with PID: " << child_pid << std::endl;
-
+	    
             if (WIFEXITED(res)) {
                 std::cerr << "Program exited with status " << WEXITSTATUS(res) << std::endl;
             }
@@ -402,6 +402,8 @@ void MySystem(char * sysCmd, char ** sysArgv)
                 std::cerr << "Process " << child_pid << " was terminated with status " << WTERMSIG(res);
             }
         }
+
+	return child_pid;
     }
 #endif
 }

@@ -892,7 +892,7 @@ int main(int argc, char * argv[])
 	  cout << "accumulated memory IO reached " << accumulated_memory_IO << " MB!" << endl;
 	  cout << "(threshold: " << threshold << " MB)" << endl;
 	  accumulated_memory_IO = 0;
-	  kill(child, SIGKILL);
+	  kill(child, SIGUSR1);
 	}
 
 	//cout << "accumulated memory IO: " << accumlated_memory_IO << endl;

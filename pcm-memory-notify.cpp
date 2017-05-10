@@ -463,7 +463,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 	 <<setw(10) <<sysRead+sysWrite << endl;
 }
 
-unsigned long calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns)
+unsigned long calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, uint32 target_socket = 9999)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
@@ -514,7 +514,10 @@ unsigned long calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1
                 md.partial_write[skt] += (uint64) (getMCCounter(channel,PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
             }
 
-	    ret += (md.iMC_Rd_socket[skt] + md.iMC_Wr_socket[skt]);
+	    if(target_socket == 0) // all sockets
+	      ret += (md.iMC_Rd_socket[skt] + md.iMC_Wr_socket[skt]);
+	    else if(skt == target_socket - 1) // only one target socket
+	      ret += (md.iMC_Rd_socket[skt] + md.iMC_Wr_socket[skt]);
 	}
     }
 
@@ -600,7 +603,7 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    unsigned long threshold = 100 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
+    unsigned long threshold = 10 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
     unsigned long accumulated_memory_IO = 0;
     
 #ifdef PCM_FORCE_SILENT
@@ -883,7 +886,7 @@ int main(int argc, char * argv[])
         if(rankA >= 0 || rankB >= 0)
           accumulated_memory_IO += calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
         else
-          accumulated_memory_IO += calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns);
+          accumulated_memory_IO += calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, 2);
 
 	if(accumulated_memory_IO > threshold){
 	  cout << "accumulated memory IO reached " << accumulated_memory_IO << " MB!" << endl;

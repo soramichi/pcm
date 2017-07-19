@@ -603,7 +603,8 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    unsigned long threshold = 10 * 1024U; // notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
+    unsigned long threshold = 10 * 1024U; // mcf: notify every 10G memory IO (the smallest unit of pcm-memory is 1MB)
+    //unsigned long threshold = 300U; // milc: notify every 300 MB memory IO (the smallest unit of pcm-memory is 1MB)
     unsigned long accumulated_memory_IO = 0;
     
 #ifdef PCM_FORCE_SILENT
